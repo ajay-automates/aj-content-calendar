@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AJ's Content Calendar</title>
+<!-- Load news data (auto-updated daily by GitHub Actions) -->
+<script src="data/news.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d0d0d; color: #f0f0f0; min-height: 100vh; }
+
+  .header { background: #111; border-bottom: 1px solid #222; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .header-left h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-left span { font-size: 13px; color: #555; margin-top: 2px; display: block; }
+  .header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .filter-btn { background: #1a1a1a; border: 1px solid #2a2a2a; color: #aaa; padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover, .filter-btn.active { background: #fff; color: #000; border-color: #fff; }
+  .refresh-btn { background: #1a1a2e; border: 1px solid #2a2a4a; color: #60a5fa; padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .refresh-btn:hover { background: #60a5fa; color: #000; border-color: #60a5fa; }
+
+  .news-banner { background: linear-gradient(135deg, #0f1629 0%, #111 100%); border-bottom: 1px solid #1e2a4a; padding: 12px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .news-banner-left { display: flex; align-items: center; gap: 10px; }
+  .news-badge { background: #1e3a5f; color: #60a5fa; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .news-banner-text { font-size: 13px; color: #aaa; }
+  .news-banner-text strong { color: #fff; }
+  .news-time { font-size: 12px; color: #444; }
+
+  .stats-bar { display: flex; gap: 1px; background: #1a1a1a; border-bottom: 1px solid #222; }
+  .stat { flex: 1; padding: 16px 24px; background: #111; }
+  .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+  .stat-label { font-size: 11px; color: #555; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value.green { color: #4ade80; }
+  .stat-value.blue { color: #60a5fa; }
+  .stat-value.amber { color: #fbbf24; }
+  .stat-value.purple { color: #c084fc; }
+
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #1a1a1a; min-height: calc(100vh - 185px); }
+  .column { background: #111; padding: 20px; overflow-y: auto; }
+  .column-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #1e1e1e; }
+  .column-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #555; display: flex; align-items: center; gap: 8px; }
+  .column-title .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-amber { background: #fbbf24; } .dot-blue { background: #60a5fa; } .dot-green { background: #4ade80; } .dot-purple { background: #c084fc; }
+  .count-badge { background: #1e1e1e; color: #666; font-size: 11px; padding: 2px 7px; border-radius: 10px; }
+
+  .card { background: #161616; border: 1px solid #222; border-left-width: 3px; border-radius: 10px; padding: 16px; margin-bottom: 12px; cursor: pointer; transition: border-color 0.15s, transform 0.1s; }
+  .card:hover { border-color: #333; transform: translateY(-1px); }
+  .card.expanded { border-color: #444; }
+  .card.posted { border-left-color: #4ade80; }
+  .card.ready { border-left-color: #60a5fa; }
+  .card.news-item { border-left-color: #c084fc; }
+
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .card-title { font-size: 14px; font-weight: 600; line-height: 1.3; flex: 1; }
+  .card-badges { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; }
+  .badge { font-size: 10px; font-weight: 600; padding: 3px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .badge-li { background: #1e3a5f; color: #60a5fa; }
+  .badge-tw { background: #1a1a1a; color: #aaa; border: 1px solid #333; }
+  .badge-news { background: #2a1a3e; color: #c084fc; }
+  .badge-src { background: #1a1a1a; color: #666; border: 1px solid #2a2a2a; }
+
+  .pillar-tag { font-size: 11px; margin-bottom: 8px; }
+  .pillar-tag span { background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 4px; color: #888; }
+  .card-quote { font-size: 12px; color: #777; line-height: 1.5; border-left: 2px solid #2a2a2a; padding-left: 10px; margin-bottom: 12px; }
+  .card-quote.news-angle { font-style: normal; color: #888; border-left-color: #3a2a5e; }
+  .card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .card-date { font-size: 11px; color: #444; }
+  .news-url { font-size: 11px; color: #60a5fa; text-decoration: none; }
+  .news-url:hover { text-decoration: underline; }
+
+  .caption-panel { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #1e1e1e; }
+  .card.expanded .caption-panel { display: block; }
+
+  .caption-block { margin-bottom: 14px; }
+  .caption-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+  .copy-btn { background: #1e1e1e; border: 1px solid #2a2a2a; color: #888; font-size: 10px; padding: 3px 9px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+  .copy-btn:hover { background: #fff; color: #000; border-color: #fff; }
+  .copy-btn.copied { background: #4ade80; color: #000; border-color: #4ade80; }
+  .caption-text { background: #0d0d0d; border: 1px solid #1e1e1e; border-radius: 6px; padding: 12px; font-size: 12px; line-height: 1.6; color: #ccc; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+
+  .angle-box { background: #0d0d1a; border: 1px solid #2a2a4a; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+  .angle-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .angle-text { font-size: 12px; color: #aaa; line-height: 1.5; }
+
+  .prompt-box { background: #0d0d1a; border: 1px solid #2a2a4a; border-radius: 6px; padding: 12px; margin-top: 10px; }
+  .prompt-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .prompt-text { font-size: 11px; color: #777; line-height: 1.5; font-family: monospace; white-space: pre-wrap; }
+  .prompt-hint { font-size: 11px; color: #555; margin-top: 8px; font-style: italic; }
+
+  .gen-btn { background: linear-gradient(135deg, #3730a3, #6d28d9); color: #fff; border: none; font-size: 11px; font-weight: 600; padding: 8px 14px; border-radius: 6px; cursor: pointer; transition: all 0.15s; width: 100%; margin-bottom: 8px; }
+  .gen-btn:hover { background: linear-gradient(135deg, #4338ca, #7c3aed); }
+
+  .empty-state { text-align: center; padding: 48px 20px; color: #333; }
+  .empty-icon { font-size: 32px; margin-bottom: 12px; }
+  .empty-text { font-size: 13px; }
+  .empty-sub { font-size: 12px; margin-top: 4px; color: #2a2a2a; }
+
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #0d0d0d; } ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>AJ's Content Calendar</h1>
+    <span>Content Repurposing Pipeline · News auto-updates daily at 7:00 AM ET</span>
+  </div>
+  <div class="header-right">
+    <button class="filter-btn active" onclick="filterPillar(event,'all')">All</button>
+    <button class="filter-btn" onclick="filterPillar(event,'AI & Tech')">AI & Tech</button>
+    <button class="filter-btn" onclick="filterPillar(event,'Entrepreneurship')">Biz</button>
+    <button class="filter-btn" onclick="filterPillar(event,'Productivity')">Productivity</button>
+    <button class="filter-btn" onclick="filterPillar(event,'Personal Growth')">Personal</button>
+    <button class="refresh-btn" onclick="location.reload()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="news-banner">
+  <div class="news-banner-left">
+    <span class="news-badge">🤖 Auto</span>
+    <span class="news-banner-text">
+      <strong>Fresh AI & Tech news every morning at 7:00 AM ET.</strong>
+      Click a news card → copy the prompt → paste in Cowork → captions ready.
+    </span>
+  </div>
+  <span class="news-time" id="current-time"></span>
+</div>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-value green" id="stat-posted">0</div><div class="stat-label">Posted</div></div>
+  <div class="stat"><div class="stat-value blue" id="stat-ready">0</div><div class="stat-label">Ready to Post</div></div>
+  <div class="stat"><div class="stat-value purple" id="stat-news">0</div><div class="stat-label">Today's News</div></div>
+  <div class="stat"><div class="stat-value amber" id="stat-videos">0</div><div class="stat-label">Videos in Inbox</div></div>
+</div>
+
+<div class="board">
+  <div class="column">
+    <div class="column-header">
+      <div class="column-title"><span class="dot dot-purple"></span>Inbox</div>
+      <span class="count-badge" id="count-inbox">0</span>
+    </div>
+    <div id="inbox-col"></div>
+  </div>
+  <div class="column">
+    <div class="column-header">
+      <div class="column-title"><span class="dot dot-blue"></span>Ready to Post</div>
+      <span class="count-badge" id="count-ready">0</span>
+    </div>
+    <div id="ready-col"></div>
+  </div>
+  <div class="column">
+    <div class="column-header">
+      <div class="column-title"><span class="dot dot-green"></span>Posted</div>
+      <span class="count-badge" id="count-posted">0</span>
+    </div>
+    <div id="posted-col"></div>
+  </div>
+</div>
+
+<script>
+// ── Clock ──────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('current-time').textContent =
+    now.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'}) +
+    ' · ' + now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+updateClock(); setInterval(updateClock, 60000);
+
+// ── Data (loaded from data/news.js) ────────────────────────────────────
+const newsItems   = window.NEWS_ITEMS   || [];
+const postedItems = window.POSTED_ITEMS || [];
+const readyItems  = window.READY_ITEMS  || [];
+
+// ── Render ─────────────────────────────────────────────────────────────
+let currentFilter = 'all';
+
+function matchFilter(item) {
+  return currentFilter === 'all' || item.pillar === currentFilter;
+}
+
+function createNewsCard(item) {
+  const prompt = `Generate LinkedIn and Twitter captions for this story in AJ's style:\n\nTitle: ${item.title}\nSource: ${item.source}\nURL: ${item.url}\nSummary: ${item.summary}\nKey angle: ${item.key_angle}\nPillar: ${item.pillar}`;
+  return `
+  <div class="card news-item" data-id="${item.id}" data-pillar="${item.pillar}" onclick="toggleCard(event,'${item.id}')">
+    <div class="card-top">
+      <div class="card-title">#${item.rank} · ${item.title}</div>
+      <div class="card-badges"><span class="badge badge-news">News</span><span class="badge badge-src">${item.source}</span></div>
+    </div>
+    <div class="pillar-tag"><span>${item.pillar}</span></div>
+    <div class="card-quote news-angle">${item.summary}</div>
+    <div class="card-meta">
+      <span class="card-date">${item.date}</span>
+      ${item.url ? `<a class="news-url" href="${item.url}" target="_blank" onclick="event.stopPropagation()">↗ Source</a>` : ''}
+    </div>
+    <div class="caption-panel">
+      <div class="angle-box">
+        <div class="angle-label">💡 AJ's Angle</div>
+        <div class="angle-text">${item.key_angle}</div>
+      </div>
+      <div class="prompt-box">
+        <div class="prompt-label">Copy prompt → paste in Cowork</div>
+        <div class="prompt-text" id="prompt-${item.id}">${prompt}</div>
+        <div class="prompt-hint">Then say "LinkedIn + Twitter please" — captions ready in seconds.</div>
+        <button class="copy-btn" style="margin-top:8px;" onclick="copyEl(event,'prompt-${item.id}')">Copy Prompt</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function createVideoCard(item) {
+  const li = item.captions?.linkedin || '';
+  const tw = item.captions?.twitter  || '';
+  return `
+  <div class="card ${item.status}" data-id="${item.id}" data-pillar="${item.pillar}" onclick="toggleCard(event,'${item.id}')">
+    <div class="card-top">
+      <div class="card-title">${item.title}</div>
+      <div class="card-badges">${(item.platforms||[]).map(p => p==='LinkedIn'?'<span class="badge badge-li">LI</span>':'<span class="badge badge-tw">TW</span>').join('')}</div>
+    </div>
+    <div class="pillar-tag"><span>${item.pillar}</span></div>
+    <div class="card-quote">"${item.keyQuote || ''}"</div>
+    <div class="card-meta"><span class="card-date">${item.date}</span><span style="font-size:11px;color:#444;">${item.source}</span></div>
+    <div class="caption-panel">
+      ${li?`<div class="caption-block"><div class="caption-label">LinkedIn<button class="copy-btn" onclick="copyEl(event,'li-${item.id}')">Copy</button></div><div class="caption-text" id="li-${item.id}">${li}</div></div>`:''}
+      ${tw?`<div class="caption-block"><div class="caption-label">Twitter/X<button class="copy-btn" onclick="copyEl(event,'tw-${item.id}')">Copy</button></div><div class="caption-text" id="tw-${item.id}">${tw}</div></div>`:''}
+    </div>
+  </div>`;
+}
+
+function render(filter) {
+  const news   = newsItems.filter(matchFilter);
+  const posted = postedItems.filter(matchFilter);
+  const ready  = readyItems.filter(matchFilter);
+
+  document.getElementById('inbox-col').innerHTML = news.length
+    ? news.map(createNewsCard).join('')
+    : `<div class="empty-state"><div class="empty-icon">📥</div><div class="empty-text">News drops here at 7 AM ET</div><div class="empty-sub">GitHub Actions fetches it automatically</div></div>`;
+
+  document.getElementById('ready-col').innerHTML = ready.length
+    ? ready.map(createVideoCard).join('')
+    : `<div class="empty-state"><div class="empty-icon">✍️</div><div class="empty-text">Captions will appear here</div><div class="empty-sub">Say "process my inbox" in Cowork</div></div>`;
+
+  document.getElementById('posted-col').innerHTML = posted.length
+    ? posted.map(createVideoCard).join('')
+    : `<div class="empty-state"><div class="empty-icon">🌱</div><div class="empty-text">Nothing posted yet</div></div>`;
+
+  document.getElementById('count-inbox').textContent  = news.length;
+  document.getElementById('count-ready').textContent  = ready.length;
+  document.getElementById('count-posted').textContent = posted.length;
+  document.getElementById('stat-posted').textContent  = posted.length;
+  document.getElementById('stat-ready').textContent   = ready.length;
+  document.getElementById('stat-news').textContent    = news.length;
+  document.getElementById('stat-videos').textContent  = ready.length;
+}
+
+function filterPillar(e, pillar) {
+  currentFilter = pillar;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  render(pillar);
+}
+
+function toggleCard(e, id) {
+  document.querySelector(`.card[data-id="${id}"]`).classList.toggle('expanded');
+}
+
+function copyEl(e, elId) {
+  e.stopPropagation();
+  const el = document.getElementById(elId);
+  const btn = e.target;
+  navigator.clipboard.writeText(el.textContent || el.innerText).then(() => {
+    btn.textContent = 'Copied!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+render('all');
+</script>
+</body>
+</html>

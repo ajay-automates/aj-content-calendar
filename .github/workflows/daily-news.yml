@@ -1,0 +1,46 @@
+name: 🤖 Daily AI News Update
+
+on:
+  schedule:
+    # 7:00 AM US Eastern Time = 12:00 UTC
+    - cron: '0 12 * * *'
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+jobs:
+  update-news:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install feedparser
+
+      - name: Fetch today's top AI & tech stories
+        run: python scripts/fetch_news.py
+
+      - name: Check if news data changed
+        id: check_changes
+        run: |
+          git diff --quiet data/news.js || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push updated news
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config --global user.name  "AJ News Bot 🤖"
+          git config --global user.email "aj-news-bot@users.noreply.github.com"
+          git add data/news.js
+          git commit -m "🤖 Daily news update — $(date +'%b %d, %Y')"
+          git push
+
+      - name: No changes detected
+        if: steps.check_changes.outputs.changed != 'true'
+        run: echo "News data unchanged — skipping commit."
